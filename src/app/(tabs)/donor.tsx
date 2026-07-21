@@ -20,28 +20,37 @@ import {
   FadeIn,
   ProgressRing,
   ScreenHeader,
+  Skeleton,
   StatTile,
 } from '@/components/ui';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Radius, Spacing, TabBarClearance } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { computeAchievements } from '@/data/achievements';
-import { useDonations, useProfile, useRequests } from '@/hooks/api';
+import { useAppointments, useDonations, useProfile, useRequests } from '@/hooks/api';
 import { computeEligibility, effectiveLastDonation } from '@/lib/blood';
-import { longDate, shortDate } from '@/lib/format';
+import { upcomingAppointment } from '@/lib/booking';
+import { longDate, shortDate, timeOfDay } from '@/lib/format';
 
 export default function DonorScreen() {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data: profile } = useProfile();
-  const { data: donations = [] } = useDonations();
+  const profileQuery = useProfile();
+  const donationsQuery = useDonations();
   const { data: requests = [] } = useRequests();
+  const appointmentsQuery = useAppointments();
+
+  const profile = profileQuery.data;
+  // Stable references so the memos below don't rerun on every render.
+  const donations = useMemo(() => donationsQuery.data ?? [], [donationsQuery.data]);
+  const appointments = useMemo(() => appointmentsQuery.data ?? [], [appointmentsQuery.data]);
 
   const eligibility = useMemo(
     () => computeEligibility(effectiveLastDonation(profile, donations)),
     [profile, donations],
   );
+  const upcoming = useMemo(() => upcomingAppointment(appointments), [appointments]);
 
   const totalUnits = donations.reduce((sum, d) => sum + d.units, 0);
   const livesImpacted = totalUnits * 3;
@@ -54,6 +63,48 @@ export default function DonorScreen() {
     [donations.length, requests],
   );
 
+  const eligibilityNote = upcoming
+    ? `Your next visit is ${shortDate(upcoming.date)}.`
+    : eligibility.eligible
+      ? 'Book an appointment whenever it suits you.'
+      : `Next eligible ${longDate(eligibility.nextEligibleDate.toISOString())}`;
+
+  const header = (
+    <ScreenHeader
+      title="Donor"
+      subtitle="Your eligibility, history, and impact"
+      trailing={
+        <PressableScale
+          onPress={() => router.push('/donor-card')}
+          accessibilityLabel="Open donor card"
+          style={[styles.cardBtn, { backgroundColor: theme.brandSubtle }]}>
+          <Ionicons name="qr-code-outline" size={20} color={theme.brand} />
+        </PressableScale>
+      }
+    />
+  );
+
+  // On a real device each of these is a ~1s round-trip, so defaulting to `[]`
+  // would flash a false "No donations yet" and the wrong eligibility before the
+  // data lands. Hold on a skeleton until the screen's own data is present.
+  // See memory: web preview hides native latency.
+  if (profileQuery.isPending || donationsQuery.isPending || appointmentsQuery.isPending) {
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + TabBarClearance },
+        ]}
+        showsVerticalScrollIndicator={false}>
+        {header}
+        <DonorSkeleton />
+      </ScrollView>
+    );
+  }
+
+  // Loaded, but no profile — the session gate routes 404s to setup, so this is
+  // only reached on a hard error. Nothing sensible to show without a profile.
   if (!profile) return null;
 
   return (
@@ -64,18 +115,7 @@ export default function DonorScreen() {
         { paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + TabBarClearance },
       ]}
       showsVerticalScrollIndicator={false}>
-      <ScreenHeader
-        title="Donor"
-        subtitle="Your eligibility, history, and impact"
-        trailing={
-          <PressableScale
-            onPress={() => router.push('/donor-card')}
-            accessibilityLabel="Open donor card"
-            style={[styles.cardBtn, { backgroundColor: theme.brandSubtle }]}>
-            <Ionicons name="qr-code-outline" size={20} color={theme.brand} />
-          </PressableScale>
-        }
-      />
+      {header}
 
       {/* Digital donor card teaser */}
       <FadeIn>
@@ -130,13 +170,28 @@ export default function DonorScreen() {
                 {eligibility.eligible ? "You're ready to donate" : `${eligibility.daysRemaining} days to go`}
               </ThemedText>
               <ThemedText type="subhead" color="textSecondary">
-                {eligibility.eligible
-                  ? 'Book an appointment whenever it suits you.'
-                  : `Next eligible ${longDate(eligibility.nextEligibleDate.toISOString())}`}
+                {eligibilityNote}
               </ThemedText>
             </View>
           </View>
-          {eligibility.eligible ? (
+          {/* An upcoming visit outranks the booking CTA: one appointment at a
+              time, so point at the one they have instead of offering another. */}
+          {upcoming ? (
+            <PressableScale
+              onPress={() => router.push(`/appointment/${upcoming.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`View your appointment at ${upcoming.centerName} on ${longDate(upcoming.date)}`}
+              style={[styles.upcoming, { backgroundColor: theme.infoSubtle }]}>
+              <Ionicons name="calendar" size={18} color={theme.info} />
+              <View style={styles.upcomingBody}>
+                <ThemedText type="subhead">Visit booked</ThemedText>
+                <ThemedText type="footnote" color="textSecondary" numberOfLines={1}>
+                  {upcoming.centerName} · {timeOfDay(upcoming.date)}
+                </ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+            </PressableScale>
+          ) : eligibility.eligible ? (
             <Button
               label="Book a donation"
               icon="calendar-outline"
@@ -247,8 +302,71 @@ export default function DonorScreen() {
   );
 }
 
+/**
+ * Placeholder that mirrors the loaded layout — donor card, eligibility, stats,
+ * achievements — so content lands in place instead of shifting the page. Not
+ * wrapped in FadeIn: a shimmering block that then fades reads as a double
+ * animation on device.
+ */
+function DonorSkeleton() {
+  const theme = useTheme();
+  return (
+    <View style={styles.skeleton}>
+      <Skeleton height={150} radius={Radius['2xl']} />
+      <View style={[styles.skelCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={styles.skelEligRow}>
+          <Skeleton width={84} height={84} radius={Radius.full} />
+          <View style={styles.skelEligText}>
+            <Skeleton width={96} height={22} radius={Radius.full} />
+            <Skeleton width="80%" height={18} />
+            <Skeleton width="60%" height={14} />
+          </View>
+        </View>
+      </View>
+      <View style={styles.statRow}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={[styles.skelStat, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Skeleton width={36} height={36} radius={Radius.md} />
+            <Skeleton width="70%" height={20} />
+            <Skeleton width="50%" height={12} />
+          </View>
+        ))}
+      </View>
+      <View style={styles.achGrid}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={styles.achWrap}>
+            <View style={[styles.skelAch, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Skeleton width={40} height={40} radius={Radius.md} />
+              <Skeleton width="80%" height={14} />
+              <Skeleton width="95%" height={12} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   content: { paddingHorizontal: Spacing.base, gap: Spacing.lg },
+  skeleton: { gap: Spacing.lg },
+  skelCard: { borderRadius: Radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.lg },
+  skelEligRow: { flexDirection: 'row', gap: Spacing.base, alignItems: 'center' },
+  skelEligText: { flex: 1, gap: Spacing.sm },
+  skelStat: {
+    flex: 1,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.base,
+    gap: Spacing.sm,
+  },
+  skelAch: {
+    borderRadius: Radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.base,
+    gap: Spacing.sm,
+    minHeight: 132,
+  },
   cardBtn: {
     width: 40,
     height: 40,
@@ -276,6 +394,15 @@ const styles = StyleSheet.create({
   eligRow: { flexDirection: 'row', gap: Spacing.base, alignItems: 'center' },
   eligText: { flex: 1, gap: 4, alignItems: 'flex-start' },
   eligBtn: { marginTop: Spacing.base },
+  upcoming: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.base,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+  },
+  upcomingBody: { flex: 1, gap: 2 },
   statRow: { flexDirection: 'row', gap: Spacing.md },
   sectionHead: {
     flexDirection: 'row',
