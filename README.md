@@ -1,56 +1,113 @@
-# Welcome to your Expo app 👋
+# DonorNet
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile-first blood-donation app for Metro Cebu. DonorNet connects donors,
+recipients, hospitals, and blood banks so people can find the right next action
+quickly — check eligibility, find a nearby center, respond to an urgent request,
+or book and manage a donation appointment.
 
-## Get started
+> The app is currently branded **Blood Bridge** in-product (onboarding, donor
+> card, seed data). "DonorNet" is the repository/project name; the in-app name
+> has not been renamed yet.
 
-1. Install dependencies
+## Features
+
+- **Eligibility** — a 90-day recovery countdown (Philippine Red Cross criteria,
+  not the US 56-day interval) that gates when a donor can book or pledge.
+- **Emergency feed** — live blood requests with blood-type compatibility
+  filtering and urgency sorting.
+- **Booking** — pick a center, donation type, day, and time. The picker only
+  offers bookable slots (nothing in the past or inside the recovery window), and
+  a donor holds one upcoming appointment at a time. Rules are enforced on both
+  the client and the server (`src/lib/booking.ts`).
+- **Donor dashboard** — lifetime impact, donation history, achievements, and a
+  digital donor card with a QR code.
+- **Map** — nearby donation centers (native only).
+- **Push notifications** — opt-in alerts for compatible blood needs.
+
+## Stack
+
+- **Expo SDK 57** (Expo Router, React Native 0.86, React 19) — app + API routes
+  in one project (`+api.ts` files under `src/app/api`).
+- **Neon** serverless Postgres via **Drizzle ORM** (`src/db/schema.ts`).
+- **Better Auth** — email/password sessions, with the Expo plugin for native.
+- **TanStack Query** for data fetching and cache.
+
+## Getting started
+
+Requires Node 18+ and a Neon Postgres database.
+
+1. **Install dependencies**
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. **Configure environment** — copy the template and fill in your values:
 
    ```bash
-   npx expo start
+   cp .env.example .env
    ```
 
-In the output, you'll find options to open the app in a
+   | Variable | What it is |
+   | --- | --- |
+   | `DATABASE_URL` | Neon Postgres connection string (Console → Connect) |
+   | `BETTER_AUTH_SECRET` | ≥32-char random string (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+   | `BETTER_AUTH_URL` | Base URL the auth server runs on (e.g. `http://localhost:8081`) |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   These are server-only — never prefix them with `EXPO_PUBLIC_`.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+3. **Set up the database**
 
-## Get a fresh project
+   ```bash
+   npm run db:push   # apply the Drizzle schema
+   npm run db:seed   # centers, articles, and demo donors
+   ```
 
-When you're ready, run:
+4. **Run the app**
 
-```bash
-npm run reset-project
+   ```bash
+   npm run web       # browser preview
+   # or
+   npx expo start    # then open in Expo Go / a dev build
+   ```
+
+## Demo accounts
+
+Created by `npm run db:seed` (password `bloodbridge-demo-123`):
+
+| Email | State |
+| --- | --- |
+| `maria@bloodbridge.demo` | A+, eligible to donate |
+| `daniel@bloodbridge.demo` | A+, mid recovery window |
+| `miguel@bloodbridge.demo` | A−, eligible to donate |
+
+## Scripts
+
+| Command | Does |
+| --- | --- |
+| `npm run web` / `npm run android` / `npm run ios` | Start the app on a platform |
+| `npm run db:push` | Push the Drizzle schema to the database |
+| `npm run db:seed` | Seed global content and demo donors |
+| `npm run db:studio` | Open Drizzle Studio |
+| `npm run lint` | Lint the project |
+
+## Project layout
+
+```
+src/
+  app/            expo-router screens + API routes (api/*+api.ts)
+  components/     UI kit and shared components
+  db/             Drizzle schema
+  hooks/          data hooks (TanStack Query) and device state
+  lib/            domain logic — eligibility, booking rules, formatting
+  types/          shared domain and API types
+scripts/seed.ts   database seed
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Notes
 
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- The database schema is server-only; never import `src/db/schema.ts` from
+  client code.
+- Booking and eligibility rules live in `src/lib/blood.ts` and
+  `src/lib/booking.ts` and are shared by the screens and the API so the two
+  never drift.
