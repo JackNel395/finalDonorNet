@@ -29,7 +29,7 @@ export default function DonorCardScreen() {
 
   const eligibility = computeEligibility(profile.lastDonationDate);
   const totalUnits = donations.reduce((sum, d) => sum + d.units, 0);
-  const payload = `BLOODBRIDGE:${profile.id}:${profile.bloodType}:${profile.fullName}`;
+  const payload = `DONORNET:${profile.id}:${profile.bloodType}:${profile.fullName}`;
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]}>
@@ -52,7 +52,7 @@ export default function DonorCardScreen() {
               <View style={styles.cardHead}>
                 <View>
                   <ThemedText type="caption" style={styles.cardBrand}>
-                    BLOOD BRIDGE DONOR
+                    DONORNET DONOR
                   </ThemedText>
                   <ThemedText type="title2" style={styles.cardName}>
                     {profile.fullName}

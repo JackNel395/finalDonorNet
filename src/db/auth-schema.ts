@@ -17,6 +17,12 @@ export const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  // Added by the admin() plugin. `role` may hold a comma-joined list, so
+  // membership is tested rather than compared — see requireAdmin.
+  role: text('role'),
+  banned: boolean('banned').default(false),
+  banReason: text('ban_reason'),
+  banExpires: timestamp('ban_expires'),
 });
 
 export const session = pgTable(
@@ -34,6 +40,9 @@ export const session = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    // Added by the admin() plugin. Impersonation is deliberately not exposed by
+    // any route; the column exists because the plugin's schema includes it.
+    impersonatedBy: text('impersonated_by'),
   },
   (table) => [index('session_userId_idx').on(table.userId)],
 );

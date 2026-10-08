@@ -21,6 +21,28 @@ export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+/**
+ * `shortDate` plus the year, for a date far enough in the past that the year is
+ * load-bearing — a last donation, where "Mar 22" alone is the difference
+ * between eligible now and years overdue.
+ */
+export function dateWithYear(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Absolute date and padded time — "Oct 2, 2026 09:15 AM". For a moderation
+ * record, where "3 days ago" is easier to read but impossible to quote back on
+ * a phone call or match against a hospital's own log.
+ */
+export function dateTime(iso: string): string {
+  return `${dateWithYear(iso)} ${clockTime(iso)}`;
+}
+
 export function monthAbbrev(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short' });
 }
@@ -40,6 +62,15 @@ export function longDate(iso: string): string {
 
 export function timeOfDay(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * `timeOfDay` with a padded hour — "09:00 AM", not "9:00 AM". For a column of
+ * times in a table, where an unpadded hour shifts every digit after it and the
+ * minutes stop lining up down the page.
+ */
+export function clockTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
 export function greeting(now = new Date()): string {

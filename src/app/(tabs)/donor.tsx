@@ -124,7 +124,7 @@ export default function DonorScreen() {
             <View style={styles.donorCardTop}>
               <View>
                 <ThemedText type="footnote" style={styles.cardLabel}>
-                  BLOOD BRIDGE DONOR
+                  DONORNET DONOR
                 </ThemedText>
                 <ThemedText type="title2" style={styles.cardName}>
                   {profile.fullName}

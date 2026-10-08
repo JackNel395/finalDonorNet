@@ -1,5 +1,5 @@
 /**
- * Blood Bridge design tokens — the single source of truth for color, type, spacing,
+ * DonorNet design tokens — the single source of truth for color, type, spacing,
  * radius, and elevation. See design.md. Never hardcode values outside this file.
  */
 
@@ -39,12 +39,23 @@ export const Colors = {
     // Status — each passes AA both as a fill under onBrand and as text on its subtle tint.
     success: '#1B7A4B',
     successSubtle: '#E7F6EC',
+    /** Text/icons on a `success` fill. Flips to ink in dark mode, like onBrand. */
+    onSuccess: '#FFFFFF',
     warning: '#B45309',
     warningSubtle: '#FEF3E2',
     danger: '#D2262D',
     dangerSubtle: '#FEEBEC',
     info: '#2563EB',
     infoSubtle: '#E8F1FE',
+    /** Decorative fourth accent for console metric tiles. Never a status. */
+    accent: '#7A5AF8',
+    accentSubtle: '#EFECFE',
+    /** Cast under a brand-filled primary action. Brand-tinted, never grey ink. */
+    brandGlow: 'rgba(196, 47, 56, 0.28)',
+    /** Console welcome banner wash, left to right. */
+    heroFrom: '#FDEDF0',
+    heroVia: '#F2F3FD',
+    heroTo: '#FFFFFF',
   },
   dark: {
     // Brand — light coral accent; dark ink label on top (iOS-style flip) for ~7:1.
@@ -77,12 +88,23 @@ export const Colors = {
     // Status
     success: '#3DD68C',
     successSubtle: '#0F2318',
+    /** Text/icons on a `success` fill. Ink, not white — white fails AA on mint. */
+    onSuccess: '#06180F',
     warning: '#F5A524',
     warningSubtle: '#291A08',
     danger: '#F16A6F',
     dangerSubtle: '#2A1416',
     info: '#5B9DFF',
     infoSubtle: '#0C1B33',
+    /** Decorative fourth accent for console metric tiles. Never a status. */
+    accent: '#A78BFA',
+    accentSubtle: '#1C1733',
+    /** Cast under a brand-filled primary action. Brand-tinted, never grey ink. */
+    brandGlow: 'rgba(255, 119, 123, 0.26)',
+    /** Console welcome banner wash, left to right. */
+    heroFrom: '#20141A',
+    heroVia: '#141527',
+    heroTo: '#131316',
   },
 } as const;
 
@@ -156,3 +178,12 @@ export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
  */
 export const TabBarClearance = 120;
 export const MaxContentWidth = 640;
+
+/**
+ * Content width for the web-only operations console. Separate from
+ * `MaxContentWidth` on purpose: 640 is phone-tuned and every donor screen keeps
+ * it, but a six-column moderation table is unreadable at that width. The admin
+ * shell is the only consumer, and `TabBarClearance` does not apply there — the
+ * console has no tab bar.
+ */
+export const AdminMaxWidth = 1200;

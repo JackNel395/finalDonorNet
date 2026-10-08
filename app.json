@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "BdsApp",
+    "name": "DonorNet",
     "slug": "BdsApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -45,7 +45,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "BloodBridge uses your location only to show how far donation centers and blood requests are from you."
+          "locationWhenInUsePermission": "DonorNet uses your location only to show how far donation centers and blood requests are from you."
         }
       ],
       [

@@ -47,7 +47,7 @@ Logic already exists in `src/lib/blood.ts` (`canDonateTo`, `donorsFor`, `recipie
   - When `!eligibility.eligible`, the `ConfirmSheet` message gains a warning line: *"You're in your 56-day recovery window — eligible again {longDate(nextEligibleDate)} ({daysRemaining} days). You can still pledge; the donation would happen after that date."* Respond stays enabled (soft gate).
   - Action-bar hint below the button (caption, `textTertiary`): "Recovering · ready in N days" when in cooldown.
 - [x] **`src/app/(tabs)/feed.tsx`** — header subtitle: when in cooldown, append "· eligible again in N days" so the countdown is visible where responding happens.
-- [x] **Known gap (document, don't fix here):** no flow ever *writes* `lastDonationDate` — completing an appointment doesn't create a `donations` row or update the profile. Left for a future "mark donation complete" feature; the seed data exercises the cooldown path meanwhile (daniel@bloodbridge.demo is mid-cooldown).
+- [x] **Known gap (document, don't fix here):** no flow ever *writes* `lastDonationDate` — completing an appointment doesn't create a `donations` row or update the profile. Left for a future "mark donation complete" feature; the seed data exercises the cooldown path meanwhile (daniel@donornet.demo is mid-cooldown).
 - [x] The "you're eligible again" push/local notification belongs to Phase D (needs the notification infra) — see D6.
 - [x] Verify: sign in as daniel (cooling down) → respond sheet shows the warning + dates; amara (eligible) → unchanged sheet. tsc + lint.
 

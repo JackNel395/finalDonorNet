@@ -2,7 +2,7 @@
  * RECOVERED SCHEMA — "center operations". A DESIGN RECORD, NOT LIVE CODE.
  *
  * ✅ RESOLVED 2026-10-07: the tables below were DROPPED from the database and
- * this feature is NOT part of Blood Bridge. This file is kept as the only
+ * this feature is NOT part of DonorNet. This file is kept as the only
  * surviving description of a design worth revisiting — nothing imports it,
  * `drizzle.config.ts` points only at `src/db/schema.ts`, and `npm run db:push`
  * now reports "No changes detected" with no destructive prompt.
@@ -201,10 +201,10 @@ export const requestCentersRelations = relations(requestCenters, ({ one }) => ({
  *
  * State at the time of the drop: all 21 rows 'member'. Four had a
  * `staff_center_id`, one per center — the demo operator accounts:
- *   operator.redcross@bloodbridge.demo  → Philippine Red Cross – Cebu Chapter
- *   operator.vsmmc@bloodbridge.demo     → Vicente Sotto Memorial Medical Center
- *   operator.ucmed@bloodbridge.demo     → University of Cebu Medical Center
- *   operator.mactan@bloodbridge.demo    → Mactan Doctors' Hospital
+ *   operator.redcross@donornet.demo  → Philippine Red Cross – Cebu Chapter
+ *   operator.vsmmc@donornet.demo     → Vicente Sotto Memorial Medical Center
+ *   operator.ucmed@donornet.demo     → University of Cebu Medical Center
+ *   operator.mactan@donornet.demo    → Mactan Doctors' Hospital
  *
  * ─── Columns DROPPED on 2026-10-07, recoverable from snapshot ─────────────────
  * Snapshot `before-drift-column-drop` (snap-plain-art-azwljwp9) predates the drop.

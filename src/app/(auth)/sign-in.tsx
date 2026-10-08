@@ -105,8 +105,8 @@ export default function SignInScreen() {
           </ThemedText>
           <ThemedText type="body" color="textSecondary" style={styles.subtitle}>
             {isSignup
-              ? 'Join Blood Bridge and start saving lives.'
-              : 'Sign in to keep saving lives with Blood Bridge.'}
+              ? 'Join DonorNet and start saving lives.'
+              : 'Sign in to keep saving lives with DonorNet.'}
           </ThemedText>
         </FadeIn>
 
@@ -159,7 +159,7 @@ export default function SignInScreen() {
             accessibilityLabel={isSignup ? 'Switch to sign in' : 'Switch to create account'}
             style={styles.switchRow}>
             <ThemedText type="footnote" color="textSecondary">
-              {isSignup ? 'Already have an account?' : 'New to Blood Bridge?'}
+              {isSignup ? 'Already have an account?' : 'New to DonorNet?'}
             </ThemedText>
             <ThemedText type="footnote" color="brand" style={styles.switchLink}>
               {isSignup ? 'Sign in' : 'Create one'}

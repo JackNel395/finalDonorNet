@@ -1,4 +1,4 @@
-# Blood Bridge
+# DonorNet
 
 ## Register
 
@@ -6,11 +6,11 @@ product
 
 ## Users
 
-People who donate blood, people trying to find compatible donors, and healthcare or blood-bank teams coordinating urgent requests. Donors often use Blood Bridge in short, mobile-first moments: checking eligibility, finding a nearby center, responding to an emergency, or managing an appointment.
+People who donate blood, people trying to find compatible donors, and healthcare or blood-bank teams coordinating urgent requests. Donors often use DonorNet in short, mobile-first moments: checking eligibility, finding a nearby center, responding to an emergency, or managing an appointment.
 
 ## Product Purpose
 
-Blood Bridge connects donors, recipients, hospitals, and blood banks so people can find the right next action quickly. Success means a donor can understand their eligibility, trust the urgency of a request, and complete a useful action with minimal friction.
+DonorNet connects donors, recipients, hospitals, and blood banks so people can find the right next action quickly. Success means a donor can understand their eligibility, trust the urgency of a request, and complete a useful action with minimal friction.
 
 ## Brand Personality
 

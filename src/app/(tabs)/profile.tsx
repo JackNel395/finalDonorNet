@@ -22,10 +22,14 @@ import {
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Radius, Spacing, TabBarClearance } from '@/constants/theme';
 import { useDonations, useProfile } from '@/hooks/api';
+import { usePrepRemindersPref } from '@/hooks/use-prep-reminders';
+import { usePushState } from '@/hooks/use-push';
 import { useTheme } from '@/hooks/use-theme';
 import { authClient } from '@/lib/auth-client';
 import { UNIVERSAL_DONOR } from '@/lib/blood';
+import { cancelAllPrepReminders, cancelEligibleAgain } from '@/lib/notifications';
 import { queryClient } from '@/lib/query';
+import { removeItem, StorageKeys } from '@/lib/storage';
 
 type Row = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -41,6 +45,8 @@ export default function ProfileScreen() {
   const toast = useToast();
   const { data: profile } = useProfile();
   const { data: donations = [] } = useDonations();
+  const { data: pushPermission } = usePushState();
+  const { data: prepReminders } = usePrepRemindersPref();
   const [confirmOut, setConfirmOut] = useState(false);
 
   if (!profile) return null;
@@ -58,6 +64,7 @@ export default function ProfileScreen() {
       icon: 'water-outline',
       label: 'Blood type',
       detail: profile.bloodType + (profile.bloodType === UNIVERSAL_DONOR ? ' · Universal' : ''),
+      onPress: () => router.push('/blood-compatibility'),
     },
     {
       icon: 'location-outline',
@@ -71,8 +78,26 @@ export default function ProfileScreen() {
     },
   ];
 
+  // Empty while anything is still loading: SettingRow only renders a detail
+  // when it's truthy, so '' holds the space rather than flashing a wrong value.
+  const notificationsDetail =
+    pushPermission === 'unsupported'
+      ? 'Unavailable'
+      : pushPermission === undefined || prepReminders === undefined
+        ? ''
+        : pushPermission === 'granted'
+          ? prepReminders
+            ? 'On'
+            : 'Off'
+          : 'Needs permission';
+
   const preferences: Row[] = [
-    { icon: 'notifications-outline', label: 'Notifications', detail: 'On' },
+    {
+      icon: 'notifications-outline',
+      label: 'Notifications',
+      detail: notificationsDetail,
+      onPress: () => router.push('/notification-settings'),
+    },
     { icon: 'shield-checkmark-outline', label: 'Privacy', detail: 'Standard' },
     { icon: 'moon-outline', label: 'Appearance', detail: 'System' },
     {
@@ -146,7 +171,7 @@ export default function ProfileScreen() {
         </FadeIn>
 
         <ThemedText type="caption" color="textTertiary" style={styles.version}>
-          Blood Bridge · v1.0.0
+          DonorNet · v1.0.0
         </ThemedText>
       </ScrollView>
 
@@ -161,6 +186,12 @@ export default function ProfileScreen() {
           setConfirmOut(false);
           await authClient.signOut();
           queryClient.clear();
+          // `queryClient.clear()` empties the cache but not the OS scheduler, so
+          // without this the next person on this device inherits the previous
+          // donor's reminders. The prep *preference* stays — it's device state.
+          await cancelAllPrepReminders();
+          await cancelEligibleAgain();
+          await removeItem(StorageKeys.prepReminderSignature);
           router.replace('/');
         }}
       />

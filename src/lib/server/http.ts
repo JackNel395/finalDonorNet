@@ -56,6 +56,46 @@ export function readCoords(request: Request): Coords | null {
   return { latitude, longitude };
 }
 
+/**
+ * A filter the operator didn't set is absent, not invalid — but a value that
+ * isn't a member of its enum is a client bug, and silently ignoring it would
+ * show staff a result set that doesn't match the filters on screen.
+ */
+export function readEnum<T extends string>(
+  params: URLSearchParams,
+  key: string,
+  allowed: readonly T[],
+): T | undefined {
+  const raw = params.get(key)?.trim();
+  if (!raw) return undefined;
+  if (!(allowed as readonly string[]).includes(raw)) {
+    throw badRequest(`${key} must be one of: ${allowed.join(', ')}`);
+  }
+  return raw as T;
+}
+
+/** A non-negative integer, clamped to `max` where one is given. */
+export function readInt(params: URLSearchParams, key: string, max?: number): number | undefined {
+  const raw = params.get(key)?.trim();
+  if (!raw) return undefined;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) throw badRequest(`${key} must be a non-negative integer`);
+  return max != null ? Math.min(n, max) : n;
+}
+
+/**
+ * A parseable date from a query param. Unlike `readCoords`, a malformed value
+ * is a 400 rather than a silent null: a date filter the server ignored would
+ * show staff a result set that contradicts the range on screen.
+ */
+export function readDate(params: URLSearchParams, key: string): Date | undefined {
+  const raw = params.get(key)?.trim();
+  if (!raw) return undefined;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) throw badRequest(`${key} must be a valid ISO date`);
+  return d;
+}
+
 type Ctx = Record<string, string>;
 type Handler = (request: Request, ctx: Ctx) => Promise<Response> | Response;
 

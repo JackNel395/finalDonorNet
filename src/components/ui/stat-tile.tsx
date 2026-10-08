@@ -10,7 +10,16 @@ type StatTileProps = {
   label: string;
   value: string;
   icon?: keyof typeof Ionicons.glyphMap;
-  tint?: 'brand' | 'success' | 'info' | 'warning' | 'neutral';
+  tint?: 'brand' | 'success' | 'info' | 'warning' | 'danger' | 'neutral';
+  /**
+   * `filled` floods the tile with its tint and colors the number to match, so a
+   * row of counts reads as a row of states at a glance. For a summary strip
+   * above the thing it summarizes, where each tile is a different status and
+   * the contrast between them is the information. `card` stays the default: on
+   * a dashboard of mixed metrics, four saturated panels compete with the
+   * content rather than introducing it.
+   */
+  variant?: 'card' | 'filled';
 };
 
 const TINTS = {
@@ -18,12 +27,40 @@ const TINTS = {
   success: { fg: 'success', bg: 'successSubtle' },
   info: { fg: 'info', bg: 'infoSubtle' },
   warning: { fg: 'warning', bg: 'warningSubtle' },
+  danger: { fg: 'danger', bg: 'dangerSubtle' },
   neutral: { fg: 'textSecondary', bg: 'surfaceSunken' },
 } as const;
 
-export function StatTile({ label, value, icon, tint = 'neutral' }: StatTileProps) {
+export function StatTile({
+  label,
+  value,
+  icon,
+  tint = 'neutral',
+  variant = 'card',
+}: StatTileProps) {
   const theme = useTheme();
   const tokens = TINTS[tint];
+
+  if (variant === 'filled') {
+    return (
+      <View
+        style={[
+          styles.filled,
+          { backgroundColor: theme[tokens.bg], borderColor: theme[tokens.bg] },
+        ]}
+        accessibilityRole="summary"
+        accessibilityLabel={`${value} ${label}`}>
+        <ThemedText type="title" style={{ color: theme[tokens.fg] }}>
+          {value}
+        </ThemedText>
+        {/* The label is tinted too, but never carries the meaning alone — it
+            states the status in words beside the count. */}
+        <ThemedText type="subhead" style={{ color: theme[tokens.fg] }} numberOfLines={1}>
+          {label}
+        </ThemedText>
+      </View>
+    );
+  }
 
   return (
     <Card style={styles.card} padding="base">
@@ -44,6 +81,14 @@ export function StatTile({ label, value, icon, tint = 'neutral' }: StatTileProps
 
 const styles = StyleSheet.create({
   card: { flex: 1, gap: Spacing.xs },
+  filled: {
+    flex: 1,
+    minWidth: 160,
+    gap: Spacing.xs,
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   iconWrap: {
     width: 34,
     height: 34,

@@ -24,6 +24,15 @@ import { URGENCY_RANK } from '@/types/domain';
 
 type Filter = 'all' | 'compatible' | 'critical';
 
+/**
+ * The feed is for requests a donor can still act on. Fulfilled ones stay in the
+ * query (the donor tab reads them for response history) but not here — a "You
+ * can help" tag on a 2/2 request leads to a disabled button.
+ */
+function isLive(r: { status: string }): boolean {
+  return r.status === 'open' || r.status === 'partial';
+}
+
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -41,7 +50,7 @@ export default function FeedScreen() {
   );
 
   const visible = useMemo(() => {
-    const active = requests.filter((r) => r.status !== 'expired');
+    const active = requests.filter(isLive);
     const filtered = active.filter((r) => {
       if (filter === 'compatible')
         return r.ownerId !== profile?.id && (bloodType ? canDonateTo(bloodType, r.bloodType) : true);
@@ -66,7 +75,7 @@ export default function FeedScreen() {
     () =>
       bloodType
         ? requests.filter(
-            (r) => r.status !== 'expired' && r.ownerId !== profile?.id && canDonateTo(bloodType, r.bloodType),
+            (r) => isLive(r) && r.ownerId !== profile?.id && canDonateTo(bloodType, r.bloodType),
           ).length
         : 0,
     [requests, bloodType, profile?.id],

@@ -12,7 +12,7 @@ export function NearbyMap() {
     <EmptyState
       icon="map-outline"
       title="Map is in the mobile app"
-      subtitle="Open BloodBridge on your phone to see nearby centers and requests on a map."
+      subtitle="Open DonorNet on your phone to see nearby centers and requests on a map."
     />
   );
 }

@@ -1,6 +1,6 @@
 # Geolocation Plan — Nearby Centers, Requests & Donor Distances
 
-Detect the user's real location (contextual, opt-in) so BloodBridge shows true distances and sorts centers/requests by proximity — degrading silently to today's behavior when permission is denied or coordinates are missing.
+Detect the user's real location (contextual, opt-in) so DonorNet shows true distances and sorts centers/requests by proximity — degrading silently to today's behavior when permission is denied or coordinates are missing.
 
 **Context:** Today every distance is fake — requests get a persisted `distance_km` from a hash of the city name (`cityDistanceKm`, `src/lib/server/serialize.ts:166`), centers' distances are hand-seeded, and every responder just echoes the request's distance. Users must already know the hospitals in their area.
 
@@ -22,7 +22,7 @@ Detect the user's real location (contextual, opt-in) so BloodBridge shows true d
 - [x] `npx expo install expo-location` (SDK 57; foreground works in Expo Go + web). _(already installed)_
 - [x] `app.json` → add to `plugins`:
   ```json
-  ["expo-location", { "locationWhenInUsePermission": "BloodBridge uses your location only to show how far donation centers and blood requests are from you." }]
+  ["expo-location", { "locationWhenInUsePermission": "DonorNet uses your location only to show how far donation centers and blood requests are from you." }]
   ```
 - [x] **New `src/lib/geo.ts`** — pure, shared client+server (mirrors `src/lib/format.ts`):
   - `Coords = { latitude: number; longitude: number }`
@@ -120,7 +120,7 @@ Sanity check: a viewer at the Cebu City anchor sees the downtown center ≈0.1�
 ## Verification
 
 **Server** (after `db:push` + `db:seed`, dev server via `expo-web`; curl with cookie jar per PLAN.md pattern):
-1. Sign in as `maria@bloodbridge.demo` → cookie.
+1. Sign in as `maria@donornet.demo` → cookie.
 2. `GET /api/centers` → seeded fallback order; `GET /api/centers?lat=10.3103&lng=123.9494` → Lapu-Lapu center first, ≈0–0.5 km.
 3. `GET /api/requests?lat=10.3111&lng=123.8931` → Cebu City requests <1 km, Mandaue ≈3.5, Talisay ≈8.5; no params → old hash values.
 4. `GET /api/requests?lat=abc&lng=123` → 200 + fallback distances.

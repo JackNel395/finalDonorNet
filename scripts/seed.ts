@@ -1,18 +1,18 @@
 /**
- * Seed the Blood Bridge database: global content (centers, announcements, articles)
+ * Seed the DonorNet database: global content (centers, announcements, articles)
  * plus demo users with donations and open emergency requests so the feed and
  * detail screens feel alive. New real users start with empty personal data.
  *
- * Idempotent: previous demo users (any *@bloodbridge.demo email) are deleted first
+ * Idempotent: previous demo users (any *@donornet.demo email) are deleted first
  * (cascades to their requests/responders/donations/appointments); global
  * content is re-inserted; centers are upserted so real users' appointments
  * keep valid references.
  *
  * Run: npm run db:seed
- * Demo accounts (password for all): bloodbridge-demo-123
- *   maria@bloodbridge.demo  (A+, eligible to donate)
- *   daniel@bloodbridge.demo (A+, mid donation cooldown)
- *   miguel@bloodbridge.demo (A-, eligible to donate)
+ * Demo accounts (password for all): donornet-demo-123
+ *   maria@donornet.demo  (A+, eligible to donate)
+ *   daniel@donornet.demo (A+, mid donation cooldown)
+ *   miguel@donornet.demo (A-, eligible to donate)
  */
 import 'dotenv/config';
 
@@ -33,7 +33,7 @@ import { auth } from '../src/lib/server/auth';
 import { db } from '../src/lib/server/db';
 import { roundCoord } from '../src/lib/geo';
 
-const DEMO_PASSWORD = 'bloodbridge-demo-123';
+const DEMO_PASSWORD = 'donornet-demo-123';
 
 /**
  * Metro Cebu coordinate frame, used as the fallback location for demo *people*
@@ -72,13 +72,13 @@ async function createDemoUser(name: string, email: string): Promise<string> {
 }
 
 async function main() {
-  console.log('Seeding Blood Bridge database...');
+  console.log('Seeding DonorNet database...');
 
   // 1. Remove previous demo users; FK cascades clean up everything they own.
   const demoUsers = await db
     .select({ id: user.id })
     .from(user)
-    .where(like(user.email, '%@bloodbridge.demo'));
+    .where(like(user.email, '%@donornet.demo'));
   if (demoUsers.length > 0) {
     await db.delete(user).where(
       inArray(
@@ -260,9 +260,9 @@ async function main() {
   ]);
 
   // 3. Demo users — created through Better Auth so password hashes are real.
-  const maria = await createDemoUser('Maria Villaflor', 'maria@bloodbridge.demo');
-  const daniel = await createDemoUser('Daniel Yap', 'daniel@bloodbridge.demo');
-  const miguel = await createDemoUser('Miguel Abellana', 'miguel@bloodbridge.demo');
+  const maria = await createDemoUser('Maria Villaflor', 'maria@donornet.demo');
+  const daniel = await createDemoUser('Daniel Yap', 'daniel@donornet.demo');
+  const miguel = await createDemoUser('Miguel Abellana', 'miguel@donornet.demo');
   console.log('Created demo users:', { maria, daniel, miguel });
 
   await db.insert(profiles).values([

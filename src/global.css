@@ -1,9 +1,47 @@
+/**
+ * Web-only type foundations. Native resolves `Fonts` from `Platform.select` in
+ * src/constants/theme.ts and never sees this file.
+ *
+ * The previous stack was `-apple-system, BlinkMacSystemFont, 'SF Pro Display',
+ * 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif`. Every one of those
+ * resolves on macOS and *none* of them exists on Windows, so Windows fell all
+ * the way through to Arial — a print face with no UI weights, loose spacing,
+ * and proportional figures that make a column of numbers ragged. The operations
+ * console is a desktop tool used mostly on Windows, so that fallback was what
+ * staff actually saw.
+ *
+ * Inter is the primary face: it is drawn for user interfaces at small sizes,
+ * ships the 500/600 weights this type ramp asks for, and has real tabular
+ * figures. `display=swap` means a slow or absent font server costs nothing —
+ * text paints immediately in the fallback, which is now a correct native UI
+ * stack on every platform rather than Arial.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
   --font-display:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial,
-    sans-serif;
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', system-ui, sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  --font-rounded:
+    'Inter', 'SF Pro Rounded', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
+}
+
+/**
+ * Inter's defaults leave contextual alternates off and render a slightly loose
+ * colour at UI sizes. These are the settings Inter itself recommends for
+ * interface text, and they apply to the donor web build and the console alike.
+ */
+html {
+  font-feature-settings:
+    'cv02' 1,
+    'cv03' 1,
+    'cv04' 1,
+    'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }

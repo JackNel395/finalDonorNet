@@ -1,4 +1,4 @@
-/** Core domain types for Blood Bridge. */
+/** Core domain types for DonorNet. */
 
 export type BloodType = 'O-' | 'O+' | 'A-' | 'A+' | 'B-' | 'B+' | 'AB-' | 'AB+';
 

@@ -66,6 +66,8 @@ function RootNavigator() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        {/* Web-only operations console; its layout redirects away on native. */}
+        <Stack.Screen name="admin" />
         <Stack.Screen name="request/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="map" options={{ presentation: 'card' }} />
         <Stack.Screen name="appointment/[id]" options={{ presentation: 'card' }} />
@@ -76,6 +78,9 @@ function RootNavigator() {
         <Stack.Screen name="book" options={{ presentation: 'modal' }} />
         <Stack.Screen name="profile-edit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="donor-card" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="prepare" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="notification-settings" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="blood-compatibility" options={{ presentation: 'modal' }} />
         <Stack.Screen name="article/[id]" options={{ presentation: 'card' }} />
       </Stack>
     </ThemeProvider>

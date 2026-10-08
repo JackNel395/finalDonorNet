@@ -1,5 +1,5 @@
 /**
- * Drizzle schema — single source of truth for the Blood Bridge database.
+ * Drizzle schema — single source of truth for the DonorNet database.
  * Domain tables mirror src/types/domain.ts; auth tables live in auth-schema.ts.
  * Server-only: never import this from client code.
  */
@@ -7,7 +7,9 @@ import {
   boolean,
   date,
   doublePrecision,
+  index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   real,
@@ -188,3 +190,33 @@ export const educationArticles = pgTable('education_articles', {
   icon: text('icon').notNull(),
   body: text('body').array().notNull(),
 });
+
+/**
+ * Every admin mutation writes one row here, in the same request handler as the
+ * mutation itself. The record must outlive what it describes, which drives two
+ * deliberate exceptions to how the rest of this schema is shaped:
+ *   - `actorId` is nullable with `onDelete: 'set null'` — deleting an admin
+ *     account must not erase the history of the actions they took.
+ *   - `targetId` is plain text with no FK — account deletion cascades, and the
+ *     audit row has to survive its target.
+ */
+export const adminAuditLog = pgTable(
+  'admin_audit_log',
+  {
+    id: id('adt'),
+    actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
+    // Dotted verb naming the capability, e.g. 'request.takedown'.
+    action: text('action').notNull(),
+    targetType: text('target_type').notNull(),
+    targetId: text('target_id').notNull(),
+    reason: text('reason'),
+    // Snapshot of what changed; for a delete, the identifying fields, since
+    // afterwards there is nothing left to point at.
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', tz).notNull().defaultNow(),
+  },
+  (t) => [
+    index('admin_audit_log_target_idx').on(t.targetType, t.targetId),
+    index('admin_audit_log_created_at_idx').on(t.createdAt),
+  ],
+);

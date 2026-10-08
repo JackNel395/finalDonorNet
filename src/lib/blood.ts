@@ -90,3 +90,13 @@ export function effectiveLastDonation(
 ): string | undefined {
   return profile?.lastDonationDate ?? donations?.[0]?.date;
 }
+
+/**
+ * Blood type spoken the way a screen reader should read it. `O-` announced
+ * literally becomes "O hyphen" or "O" depending on the engine, which is the
+ * one place in this app where a misread is clinically misleading.
+ */
+export function spokenBloodType(type: BloodType): string {
+  const group = type.slice(0, -1);
+  return `${group} ${type.endsWith('+') ? 'positive' : 'negative'}`;
+}

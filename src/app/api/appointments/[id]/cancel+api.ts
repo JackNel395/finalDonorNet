@@ -1,31 +1,22 @@
 /**
  * POST /api/appointments/[id]/cancel — caller cancels their own appointment.
+ *
+ * The transition itself lives in src/lib/server/appointments.ts, shared with the
+ * admin route so staff cancelling a booking and a donor cancelling the same
+ * booking cannot produce different end states. This route owns only the
+ * ownership question.
  */
-import { eq } from 'drizzle-orm';
-
-import { appointments, donationCenters } from '@/db/schema';
-import { db } from '@/lib/server/db';
-import { forbidden, handle, json, notFound } from '@/lib/server/http';
+import { cancelAppointment, loadAppointment } from '@/lib/server/appointments';
+import { forbidden, handle, json } from '@/lib/server/http';
 import { toAppointment } from '@/lib/server/serialize';
 import { requireSession } from '@/lib/server/session';
 
 export const POST = handle(async (request, { id }) => {
   const { user } = await requireSession(request);
 
-  const [apt] = await db.select().from(appointments).where(eq(appointments.id, id));
-  if (!apt) throw notFound('Appointment not found');
+  const { apt, center } = await loadAppointment(id);
   if (apt.userId !== user.id) throw forbidden('Not your appointment');
 
-  const [row] = await db
-    .update(appointments)
-    .set({ status: 'cancelled' })
-    .where(eq(appointments.id, id))
-    .returning();
-
-  const [center] = await db
-    .select()
-    .from(donationCenters)
-    .where(eq(donationCenters.id, row.centerId));
-
+  const row = await cancelAppointment(apt);
   return json(toAppointment(row, center));
 });

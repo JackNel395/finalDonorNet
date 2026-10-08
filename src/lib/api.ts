@@ -66,4 +66,7 @@ export const api = {
       method: 'PATCH',
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
+  // Centers, articles, and announcements need DELETE. `request()` already
+  // returns undefined on 204, so nothing else here changes.
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };

@@ -1,8 +1,8 @@
-# Blood Bridge — Design System
+# DonorNet — Design System
 
 > **Single source of truth** for all UI/UX. Inspired by the **Linear Design System**: minimal, elegant, fast, distraction-free, meticulously crafted. Every screen emphasizes clean layouts, consistent spacing, native SF typography, solid color surfaces, soft shadows, rounded corners, tasteful glassmorphism, and fluid micro-interactions.
 >
-> **Product:** Blood Bridge — a blood donation app that connects donors, recipients, hospitals, and blood banks to save lives.
+> **Product:** DonorNet — a blood donation app that connects donors, recipients, hospitals, and blood banks to save lives.
 
 ---
 

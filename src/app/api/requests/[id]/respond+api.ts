@@ -6,11 +6,16 @@ import { and, eq } from 'drizzle-orm';
 
 import { emergencyRequests, responders } from '@/db/schema';
 import { db } from '@/lib/server/db';
+import { expireOverdueRequests } from '@/lib/server/request-expiry';
 import { badRequest, conflict, handle, json, notFound } from '@/lib/server/http';
 import { requireSession } from '@/lib/server/session';
 
 export const POST = handle(async (request, { id }) => {
   const { user } = await requireSession(request);
+
+  // A feed loaded before the deadline can still offer the button after it;
+  // expiring first turns that press into the same 409 as any closed request.
+  await expireOverdueRequests();
 
   const [req] = await db.select().from(emergencyRequests).where(eq(emergencyRequests.id, id));
   if (!req) throw notFound('Request not found');

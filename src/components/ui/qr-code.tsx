@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 
-import { useTheme } from '@/hooks/use-theme';
+import { Colors } from '@/constants/theme';
 
 type QRCodeProps = {
   value: string;
@@ -56,8 +56,10 @@ function finderFilled(r: number, c: number): boolean {
 }
 
 export function QRCode({ value, size = 160, color, background }: QRCodeProps) {
-  const theme = useTheme();
-  const fg = color ?? theme.text;
+  // Always dark ink, never `theme.text`: a code reads as dark modules on a
+  // light tile in both themes (the donor card's tile is white in dark mode
+  // too), and the theme's near-white dark-mode text made it vanish.
+  const fg = color ?? Colors.light.text;
   const bg = background ?? 'transparent';
 
   const cells = useMemo(() => {

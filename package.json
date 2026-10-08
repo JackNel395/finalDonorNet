@@ -60,8 +60,11 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
+    "admin:promote": "tsx scripts/promote-admin.ts",
+    "auth:set-password": "tsx scripts/reset-password.ts",
     "db:studio": "drizzle-kit studio"
   },
   "private": true

@@ -27,7 +27,7 @@ export const authClient = createAuthClient({
       : [
           expoClient({
             scheme: 'bdsapp',
-            storagePrefix: 'bloodbridge',
+            storagePrefix: 'donornet',
             storage: SecureStore,
           }),
         ],

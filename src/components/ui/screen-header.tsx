@@ -29,7 +29,16 @@ export function ScreenHeader({
 
   const handleBack = () => {
     if (onBack) return onBack();
-    if (router.canGoBack()) router.back();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    // Nothing to go back to — the screen was reached by `replace` (posting a
+    // request lands on it that way), a deep link, or a web reload, which drops
+    // the in-app stack. A back button that silently does nothing reads as a
+    // frozen screen, so it goes home instead. Straight to the tab rather than
+    // via "/", whose gate would send a staff account to the console.
+    router.replace('/(tabs)/home');
   };
 
   return (

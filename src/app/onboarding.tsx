@@ -33,7 +33,7 @@ const SLIDES: Slide[] = [
   {
     icon: 'water',
     title: 'Every drop\nsaves a life',
-    body: 'One donation can help up to three people. Blood Bridge connects you to the moments where you matter most.',
+    body: 'One donation can help up to three people. DonorNet connects you to the moments where you matter most.',
   },
   {
     icon: 'pulse',
@@ -88,7 +88,7 @@ export default function Onboarding() {
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.top}>
           <ThemedText type="headline" style={styles.brand}>
-            Blood Bridge
+            DonorNet
           </ThemedText>
           {!isLast && (
             <PressableScale

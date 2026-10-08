@@ -144,7 +144,7 @@ export default function HomeScreen() {
                 <Ionicons name="water" size={13} color={theme.brand} />
               </View>
               <ThemedText type="caption" color="brand" style={styles.brandWordmark}>
-                BLOOD BRIDGE
+                DONORNET
               </ThemedText>
             </View>
             <ThemedText type="title">{greeting()}, {firstName(profile.fullName)}</ThemedText>

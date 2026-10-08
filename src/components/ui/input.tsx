@@ -19,9 +19,20 @@ export type InputProps = TextInputProps & {
   icon?: keyof typeof Ionicons.glyphMap;
   error?: string;
   hint?: string;
+  /**
+   * A budget shown opposite the label — "24 / 65". For a field with a hard cap
+   * the writer needs to see while typing, where burying the count in `hint`
+   * means it is read once and then ignored.
+   */
+  counter?: string;
+  /**
+   * Marks the label with an asterisk and reports `aria-required`. The marker is
+   * hidden from screen readers, which hear the required state instead.
+   */
+  required?: boolean;
 };
 
-export function Input({ label, icon, error, hint, style, ...rest }: InputProps) {
+export function Input({ label, icon, error, hint, counter, required, style, ...rest }: InputProps) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
 
@@ -29,10 +40,20 @@ export function Input({ label, icon, error, hint, style, ...rest }: InputProps) 
 
   return (
     <View style={styles.wrap}>
-      {label ? (
-        <ThemedText type="subhead" color="textSecondary" style={styles.label}>
-          {label}
-        </ThemedText>
+      {label || counter ? (
+        <View style={styles.labelRow}>
+          {label ? (
+            <ThemedText type="subhead" color="textSecondary" style={styles.label}>
+              {label}
+              {required ? <RequiredMark /> : null}
+            </ThemedText>
+          ) : null}
+          {counter ? (
+            <ThemedText type="footnote" color={error ? 'danger' : 'textTertiary'}>
+              {counter}
+            </ThemedText>
+          ) : null}
+        </View>
       ) : null}
       <View
         style={[
@@ -50,6 +71,11 @@ export function Input({ label, icon, error, hint, style, ...rest }: InputProps) 
         <TextInput
           style={[styles.input, webNoOutline, { color: theme.text, fontFamily: Fonts.sans }, style]}
           placeholderTextColor={theme.textTertiary}
+          // The visible label is a sibling, not a <label for>, so the field
+          // carries its own name unless the caller gives a more specific one.
+          accessibilityLabel={label}
+          {...(required ? ({ 'aria-required': true } as object) : null)}
+          {...(error ? ({ 'aria-invalid': true } as object) : null)}
           onFocus={(e) => {
             setFocused(true);
             rest.onFocus?.(e);
@@ -74,6 +100,21 @@ export function Input({ label, icon, error, hint, style, ...rest }: InputProps) 
   );
 }
 
+/** The required-field asterisk, shared with the console's form labels. */
+export function RequiredMark() {
+  const theme = useTheme();
+  return (
+    <ThemedText
+      type="subhead"
+      style={{ color: theme.danger }}
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      {...({ 'aria-hidden': true } as object)}>
+      {' *'}
+    </ThemedText>
+  );
+}
+
 // The field's brand border is the focus ring; suppress the browser's default
 // outline so web doesn't stack a second ring on top of it. `outlineStyle:
 // 'none'` is a valid react-native-web style but missing from RN's TS types,
@@ -83,6 +124,7 @@ const webNoOutline =
 
 const styles = StyleSheet.create({
   wrap: { gap: Spacing.sm },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
   label: { marginLeft: Spacing.xs },
   field: {
     flexDirection: 'row',

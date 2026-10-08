@@ -7,6 +7,7 @@ import { and, count, eq } from 'drizzle-orm';
 
 import { emergencyRequests, profiles, responders, user as authUser } from '@/db/schema';
 import { db } from '@/lib/server/db';
+import { expireOverdueRequests } from '@/lib/server/request-expiry';
 import { handle, json, notFound, readCoords } from '@/lib/server/http';
 import { toEmergencyRequest, toResponder } from '@/lib/server/serialize';
 import { requireSession } from '@/lib/server/session';
@@ -15,6 +16,9 @@ import type { RequestWithMine } from '@/types/api';
 export const GET = handle(async (request, { id }) => {
   const { user } = await requireSession(request);
   const viewer = readCoords(request);
+
+  // Close anything past its deadline first, so this read never shows it as live.
+  await expireOverdueRequests();
 
   const [row] = await db.select().from(emergencyRequests).where(eq(emergencyRequests.id, id));
   if (!row) throw notFound('Request not found');

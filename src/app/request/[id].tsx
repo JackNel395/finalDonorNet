@@ -5,7 +5,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import {
   ConfirmSheet,
   EmptyState,
   FadeIn,
+  PressableScale,
   ScreenHeader,
   URGENCY_LABEL,
   URGENCY_TONE,
@@ -43,6 +44,7 @@ import { Responder } from '@/types/domain';
 
 export default function RequestDetailScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -161,7 +163,17 @@ export default function RequestDetailScreen() {
           title={request.hospital}
           showBack
           large={false}
-          trailing={<Badge label={URGENCY_LABEL[request.urgency]} tone={URGENCY_TONE[request.urgency]} dot />}
+          trailing={
+            // Once closed, urgency is history; the status is what a reader needs.
+            isClosed ? (
+              <Badge
+                label={request.status === 'fulfilled' ? 'Fulfilled' : 'Closed'}
+                tone={request.status === 'fulfilled' ? 'success' : 'neutral'}
+              />
+            ) : (
+              <Badge label={URGENCY_LABEL[request.urgency]} tone={URGENCY_TONE[request.urgency]} dot />
+            )
+          }
         />
 
         {/* Blood type + compatibility */}
@@ -187,7 +199,7 @@ export default function RequestDetailScreen() {
 
         {/* Compatibility — explicit for the viewer; hidden for owners and when
             the profile hasn't loaded. */}
-        {!isOwner && profile ? (
+        {!isOwner && profile && !isClosed ? (
           <FadeIn delay={30}>
             <Card variant="tinted" tint={compatible ? theme.successSubtle : theme.warningSubtle}>
               <View style={styles.compatCard}>
@@ -196,12 +208,27 @@ export default function RequestDetailScreen() {
                   size={20}
                   color={compatible ? theme.success : theme.warning}
                 />
-                <ThemedText type="footnote" color="textSecondary" style={styles.compatCardText}>
-                  {compatible
-                    ? `Your ${profile.bloodType} is compatible with this request.`
-                    : `Your ${profile.bloodType} can't donate to ${request.bloodType}. ` +
-                      `${request.bloodType} patients can only receive from: ${donorsFor(request.bloodType).join(', ')}.`}
-                </ThemedText>
+                <View style={styles.compatCardText}>
+                  <ThemedText type="footnote" color="textSecondary">
+                    {compatible
+                      ? `Your ${profile.bloodType} is compatible with this request.`
+                      : `Your ${profile.bloodType} can't donate to ${request.bloodType}. ` +
+                        `${request.bloodType} patients can only receive from: ${donorsFor(request.bloodType).join(', ')}.`}
+                  </ThemedText>
+                  {/* The incompatible case is where donors doubt the matching;
+                      give them the full chart rather than only a verdict. */}
+                  {!compatible ? (
+                    <PressableScale
+                      onPress={() => router.push('/blood-compatibility')}
+                      hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="See the full blood type compatibility chart">
+                      <ThemedText type="footnote" color="brand" style={styles.compatLink}>
+                        See the full chart
+                      </ThemedText>
+                    </PressableScale>
+                  ) : null}
+                </View>
               </View>
             </Card>
           </FadeIn>
@@ -342,16 +369,34 @@ export default function RequestDetailScreen() {
             <Button label="Call" variant="secondary" icon="call" onPress={call} />
             <View style={styles.respondBtn}>
               <Button
-                label={responded ? 'You responded' : compatible ? 'Respond to request' : 'Respond anyway'}
+                label={
+                  responded
+                    ? 'You responded'
+                    : isClosed
+                      ? request.status === 'fulfilled'
+                        ? 'Request fulfilled'
+                        : 'Request closed'
+                      : compatible
+                        ? 'Respond to request'
+                        : 'Respond anyway'
+                }
                 fullWidth
                 disabled={responded || isClosed}
-                icon={responded ? 'checkmark' : 'hand-left'}
+                icon={responded || request.status === 'fulfilled' ? 'checkmark' : isClosed ? 'time-outline' : 'hand-left'}
                 onPress={() => setConfirming(true)}
               />
             </View>
           </>
         )}
         </View>
+        {!isOwner && !responded && isClosed ? (
+          // Says why the button is disabled, rather than leaving it to look broken.
+          <ThemedText type="caption" color="textTertiary" style={styles.actionHint}>
+            {request.status === 'fulfilled'
+              ? 'Every unit has a donor. Thank you for checking.'
+              : 'This request passed its needed-by time and no longer takes donors.'}
+          </ThemedText>
+        ) : null}
         {!isOwner && !responded && !isClosed && !eligibility.eligible ? (
           <ThemedText type="caption" color="textTertiary" style={styles.actionHint}>
             Recovering · ready in {eligibility.daysRemaining} days
@@ -393,7 +438,7 @@ export default function RequestDetailScreen() {
       <ConfirmSheet
         visible={celebrating}
         title="Your request is fulfilled"
-        message="Every unit you need has a confirmed donor on the way. Thank you for trusting Blood Bridge."
+        message="Every unit you need has a confirmed donor on the way. Thank you for trusting DonorNet."
         confirmLabel="Done"
         cancelLabel="Close"
         onConfirm={() => setCelebrating(false)}
@@ -451,7 +496,8 @@ const styles = StyleSheet.create({
   heroText: { flex: 1, gap: 4 },
   compatRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   compatCard: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  compatCardText: { flex: 1 },
+  compatCardText: { flex: 1, gap: Spacing.sm },
+  compatLink: { fontWeight: '700' },
   progressHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 4 },

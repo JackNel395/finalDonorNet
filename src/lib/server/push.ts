@@ -1,17 +1,30 @@
 /**
- * Push fan-out: notify donors whose blood type can serve a new request.
+ * Push fan-out. Two senders share one transport:
+ *
+ *   - `notifyMatchingDonors` — the emergency fan-out, fired by POST /api/requests.
+ *   - `resolveSegment` + `sendPushBatches` — the admin console's broadcast.
  *
  * Uses the Expo push API directly (no `expo-server-sdk` dependency, no API key
  * needed). Sends in batches of ≤100, and prunes tokens the API reports as
- * `DeviceNotRegistered`. Server-only.
+ * `DeviceNotRegistered`.
+ *
+ * `sendPushBatches` was extracted from `notifyMatchingDonors` rather than
+ * forked, so a dead token is pruned identically whichever sender wrote to it
+ * and the emergency path keeps exactly the batching it always had. Server-only.
  */
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, ilike, inArray, ne, sql, type SQL } from 'drizzle-orm';
 
-import { emergencyRequests, profiles, pushTokens } from '@/db/schema';
-import { donorsFor } from '@/lib/blood';
+import {
+  donations,
+  emergencyRequests,
+  profiles,
+  pushTokens,
+  user as authUser,
+} from '@/db/schema';
+import { donorsFor, PH_DONATION_INTERVAL_DAYS } from '@/lib/blood';
 import { db } from '@/lib/server/db';
 import { type Coords, haversineKm } from '@/lib/geo';
-import type { Urgency } from '@/types/domain';
+import type { BloodType, Urgency } from '@/types/domain';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const CHUNK = 100;
@@ -24,7 +37,8 @@ const URGENCY_WORD: Record<Urgency, string> = {
   routine: 'Routine',
 };
 
-interface ExpoMessage {
+/** One push message. Tickets come back positionally aligned with these. */
+export interface ExpoMessage {
   to: string;
   title: string;
   body: string;
@@ -92,6 +106,17 @@ export async function notifyMatchingDonors(request: RequestRow): Promise<void> {
     priority: 'high',
   }));
 
+  await sendPushBatches(messages);
+}
+
+/**
+ * Send any number of messages, in batches of ≤100, pruning dead tokens.
+ *
+ * This is the whole of what `notifyMatchingDonors` used to do inline. Both
+ * senders now go through it, so neither can drift from the other on batching or
+ * on `DeviceNotRegistered` handling.
+ */
+export async function sendPushBatches(messages: ExpoMessage[]): Promise<void> {
   for (const batch of chunk(messages, CHUNK)) {
     await sendBatch(batch);
   }
@@ -126,4 +151,87 @@ async function sendBatch(batch: ExpoMessage[]): Promise<void> {
   if (dead.length > 0) {
     await db.delete(pushTokens).where(inArray(pushTokens.token, dead));
   }
+}
+
+// --- Admin broadcast -------------------------------------------------------
+
+/**
+ * Who a broadcast goes to. Chosen from structured filters, never an arbitrary
+ * recipient list — that is a safety boundary, not a UI convenience.
+ *
+ * `intervalElapsed` is deliberately **not** called `eligibleOnly`.
+ * `computeEligibility` measures donation-interval spacing
+ * (`PH_DONATION_INTERVAL_DAYS`), not medical fitness, and nothing here may
+ * imply the app has made a medical eligibility decision about a donor.
+ */
+export interface BroadcastSegment {
+  /**
+   * Donors who **are** this blood type. Note this differs from the emergency
+   * fan-out, which uses `donorsFor()` compatibility: a broadcast is addressed
+   * to a group of donors, not matched to a patient's need.
+   */
+  bloodType?: BloodType;
+  /** Case-insensitive substring, matching every other admin city filter. */
+  city?: string;
+  /** Only donors whose donation interval has elapsed. */
+  intervalElapsed?: boolean;
+}
+
+export interface ResolvedSegment {
+  /** Device tokens to send to. */
+  tokens: string[];
+  /** Distinct donors matched — the number staff must confirm. */
+  recipientCount: number;
+  /** Devices matched; higher than `recipientCount` when a donor has several. */
+  deviceCount: number;
+}
+
+/**
+ * Resolve a segment to the tokens it would reach, without sending anything.
+ *
+ * Suspended accounts are excluded: a banned donor cannot sign in, so pushing to
+ * their lock screen would be an alert they are unable to act on.
+ */
+export async function resolveSegment(segment: BroadcastSegment): Promise<ResolvedSegment> {
+  // Mirrors `effectiveLastDonation`: the profile's own date, else the newest
+  // donation on file. Kept in SQL so the segment never loads every donor.
+  const lastDonation = sql<Date | null>`coalesce(${profiles.lastDonationDate}, (select max(${donations.date}) from ${donations} where ${donations.userId} = ${profiles.userId}))`;
+
+  const filters: SQL[] = [
+    // A suspended donor is not a valid recipient.
+    sql`coalesce(${authUser.banned}, false) = false`,
+  ];
+  if (segment.bloodType) filters.push(eq(profiles.bloodType, segment.bloodType));
+  if (segment.city) filters.push(ilike(profiles.city, `%${segment.city}%`));
+  if (segment.intervalElapsed) {
+    const cutoff = new Date(Date.now() - PH_DONATION_INTERVAL_DAYS * 86_400_000);
+    // Never donated, or the interval has already passed.
+    filters.push(sql`(${lastDonation} is null or ${lastDonation} <= ${cutoff})`);
+  }
+
+  const rows = await db
+    .select({ token: pushTokens.token, userId: pushTokens.userId })
+    .from(pushTokens)
+    .innerJoin(profiles, eq(profiles.userId, pushTokens.userId))
+    .innerJoin(authUser, eq(authUser.id, pushTokens.userId))
+    .where(and(...filters));
+
+  return {
+    tokens: rows.map((r) => r.token),
+    recipientCount: new Set(rows.map((r) => r.userId)).size,
+    deviceCount: rows.length,
+  };
+}
+
+/** Build the messages for a broadcast. Taps open the home feed. */
+export function broadcastMessages(tokens: string[], title: string, body: string): ExpoMessage[] {
+  return tokens.map((to) => ({
+    to,
+    title,
+    body,
+    data: { url: '/(tabs)/home' },
+    sound: 'default',
+    channelId: 'default',
+    priority: 'high',
+  }));
 }

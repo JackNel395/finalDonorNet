@@ -2,6 +2,9 @@
  * /api/requests — the emergency request feed.
  *   GET  → non-expired requests with responder counts and the caller's own
  *          response (replaces the old client-side respondedRequestIds).
+ *          Overdue open requests are expired first — see request-expiry.ts.
+ *          Fulfilled ones are still returned: the donor tab reads them for
+ *          response history, and the feed hides them itself.
  *   POST → create a request owned by the caller.
  */
 import { count, desc, eq, ne } from 'drizzle-orm';
@@ -11,6 +14,7 @@ import { db } from '@/lib/server/db';
 import { isValidLat, isValidLng } from '@/lib/geo';
 import { badRequest, handle, json, readCoords, readJson } from '@/lib/server/http';
 import { notifyMatchingDonors } from '@/lib/server/push';
+import { expireOverdueRequests } from '@/lib/server/request-expiry';
 import { cityDistanceKm, toEmergencyRequest } from '@/lib/server/serialize';
 import { requireSession } from '@/lib/server/session';
 import type { CreateRequestBody, RequestWithMine } from '@/types/api';
@@ -18,6 +22,9 @@ import type { CreateRequestBody, RequestWithMine } from '@/types/api';
 export const GET = handle(async (request) => {
   const { user } = await requireSession(request);
   const viewer = readCoords(request);
+
+  // Close anything past its deadline first, so this read never shows it as live.
+  await expireOverdueRequests();
 
   const rows = await db
     .select()

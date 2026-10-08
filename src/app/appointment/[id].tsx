@@ -16,16 +16,10 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useAppointment, useCancelAppointment, useCompleteAppointment } from '@/hooks/api';
 import { useTheme } from '@/hooks/use-theme';
 import { PH_DONATION_INTERVAL_DAYS } from '@/lib/blood';
+import { DONATION_TYPE_LABEL } from '@/lib/booking';
 import { dayOfMonth, longDate, monthAbbrev, timeOfDay } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import type { Appointment } from '@/types/domain';
-
-const TYPE_LABEL: Record<Appointment['type'], string> = {
-  whole: 'Whole blood',
-  plasma: 'Plasma',
-  platelets: 'Platelets',
-  power_red: 'Power Red',
-};
 
 const STATUS_TONE: Record<Appointment['status'], 'success' | 'warning' | 'neutral'> = {
   confirmed: 'success',
@@ -141,10 +135,30 @@ export default function AppointmentDetailScreen() {
         <FadeIn delay={60}>
           <Card padding="base">
             <DetailRow icon="time-outline" label="Time" value={timeOfDay(appointment.date)} />
-            <DetailRow icon="water-outline" label="Donation" value={TYPE_LABEL[appointment.type]} />
+            <DetailRow icon="water-outline" label="Donation" value={DONATION_TYPE_LABEL[appointment.type]} />
             <DetailRow icon="location-outline" label="Address" value={appointment.address} last />
           </Card>
         </FadeIn>
+
+        {/* Preparation — the one entry point that works everywhere, including
+            web, where notifications don't exist at all. */}
+        {isActive ? (
+          <FadeIn delay={100}>
+            <Card
+              onPress={() => router.push({ pathname: '/prepare', params: { id: appointment.id } })}
+              accessibilityLabel="How to prepare for your donation">
+              <View style={styles.linkRow}>
+                <View style={[styles.linkIcon, { backgroundColor: theme.surfaceSunken }]}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={theme.brand} />
+                </View>
+                <ThemedText type="bodyStrong" style={styles.linkText}>
+                  How to prepare
+                </ThemedText>
+                <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+              </View>
+            </Card>
+          </FadeIn>
+        ) : null}
 
         {/* Directions — a helpful secondary action for an upcoming visit */}
         {isActive ? (

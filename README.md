@@ -5,7 +5,7 @@ recipients, hospitals, and blood banks so people can find the right next action
 quickly — check eligibility, find a nearby center, respond to an urgent request,
 or book and manage a donation appointment.
 
-> The app is currently branded **Blood Bridge** in-product (onboarding, donor
+> The app is currently branded **DonorNet** in-product (onboarding, donor
 > card, seed data). "DonorNet" is the repository/project name; the in-app name
 > has not been renamed yet.
 
@@ -73,13 +73,13 @@ Requires Node 18+ and a Neon Postgres database.
 
 ## Demo accounts
 
-Created by `npm run db:seed` (password `bloodbridge-demo-123`):
+Created by `npm run db:seed` (password `donornet-demo-123`):
 
 | Email | State |
 | --- | --- |
-| `maria@bloodbridge.demo` | A+, eligible to donate |
-| `daniel@bloodbridge.demo` | A+, mid recovery window |
-| `miguel@bloodbridge.demo` | A−, eligible to donate |
+| `maria@donornet.demo` | A+, eligible to donate |
+| `daniel@donornet.demo` | A+, mid recovery window |
+| `miguel@donornet.demo` | A−, eligible to donate |
 
 ## Scripts
 

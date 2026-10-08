@@ -14,7 +14,7 @@ import * as Device from 'expo-device';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
-import type { NotificationResponse } from 'expo-notifications';
+import type { NotificationResponse, NotificationTriggerInput } from 'expo-notifications';
 
 import { PH_DONATION_INTERVAL_DAYS } from '@/lib/blood';
 
@@ -59,6 +59,19 @@ const DEFAULT_CHANNEL = 'default';
 
 /** Stable id so rescheduling the eligibility reminder replaces, never stacks. */
 const ELIGIBLE_AGAIN_ID = 'eligible-again';
+
+/**
+ * Preparation reminders get their own Android channel on purpose: `default` is
+ * "Blood requests" at HIGH importance, and a donor must be able to mute a
+ * preparation nudge without silencing an emergency alert.
+ */
+const PREP_CHANNEL = 'donation-prep';
+
+/** Namespace for prep ids; `cancelAllPrepReminders` enumerates on this prefix. */
+const PREP_ID_PREFIX = 'prep:';
+
+/** Same-day fallback lead: how far ahead of the appointment `d0` may still fire. */
+const SAME_DAY_LEAD_MINUTES = 90;
 
 const isWeb = Platform.OS === 'web';
 
@@ -174,6 +187,211 @@ export async function cancelEligibleAgain(): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(ELIGIBLE_AGAIN_ID);
   } catch {
     // Nothing scheduled under that id — fine.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Donation-preparation reminders
+//
+// Three local reminders in the week before a booked donation. General
+// preparation guidance only: nothing here states an eligibility rule, a
+// threshold, or a self-assessment - final eligibility is always determined by
+// trained donation-center staff.
+// ---------------------------------------------------------------------------
+
+async function ensurePrepChannel() {
+  const Notifications = available();
+  if (!Notifications || Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(PREP_CHANNEL, {
+    name: 'Donation reminders',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+}
+
+export type PrepStageKey = 'd7' | 'd2' | 'd0';
+
+export interface PrepStage {
+  key: PrepStageKey;
+  daysBefore: number;
+  hour: number;
+  title: string;
+  body: string;
+}
+
+/**
+ * Reminder copy lives here, not in the UI, so a banner and the preparation
+ * screen can never drift apart.
+ */
+export const PREP_STAGES: readonly PrepStage[] = [
+  {
+    key: 'd7',
+    daysBefore: 7,
+    hour: 9,
+    title: 'Your donation is a week away',
+    body: 'Your blood donation is coming up. Start preparing by staying well and keeping hydrated.',
+  },
+  {
+    key: 'd2',
+    daysBefore: 2,
+    hour: 9,
+    title: 'Your donation is in two days',
+    body: 'Your donation is in two days. Drink plenty of water, eat balanced meals, and rest well.',
+  },
+  {
+    key: 'd0',
+    daysBefore: 0,
+    hour: 7,
+    title: 'Today is donation day',
+    body: 'Today is donation day. Eat a light, healthy meal, bring a valid ID, and tell donation staff about medications, recent travel, illness, or relevant health conditions.',
+  },
+] as const;
+
+/**
+ * Deterministic per appointment and stage, so a reschedule replaces exactly
+ * these notifications and a cancel targets exactly this appointment. Cannot
+ * collide with the fixed `'eligible-again'` id.
+ */
+export function prepIdFor(appointmentId: string, stage: PrepStageKey): string {
+  return `${PREP_ID_PREFIX}${appointmentId}:${stage}`;
+}
+
+/** A trigger instant is only usable if it's far enough out that the OS won't drop it. */
+const TRIGGER_FLOOR_MS = 60_000;
+
+/**
+ * When a stage should fire, or `null` if it shouldn't. Pure - no native module,
+ * so it is testable in isolation.
+ *
+ * `d0` carries a same-day fallback: someone booking at 10:00 for a 13:00 slot
+ * has already missed 07:00, but the reminder is still worth sending, so it
+ * fires 90 minutes before the appointment instead of being dropped.
+ */
+export function prepStageFireAt(
+  appointmentISO: string,
+  stage: PrepStage,
+  now: Date = new Date(),
+): Date | null {
+  const appointment = new Date(appointmentISO);
+  if (Number.isNaN(appointment.getTime())) return null;
+
+  const nowMs = now.getTime();
+  const usable = (d: Date) => (d.getTime() - nowMs > TRIGGER_FLOOR_MS ? d : null);
+
+  const fireAt = new Date(appointment);
+  fireAt.setDate(fireAt.getDate() - stage.daysBefore);
+  // Setting the hour *after* shifting the date is what keeps month-end and DST
+  // rollovers correct.
+  fireAt.setHours(stage.hour, 0, 0, 0);
+
+  const onTime = usable(fireAt);
+  if (onTime) return onTime;
+
+  if (stage.daysBefore === 0) {
+    return usable(new Date(appointment.getTime() - SAME_DAY_LEAD_MINUTES * 60_000));
+  }
+
+  return null;
+}
+
+export interface SchedulePrepRemindersOptions {
+  appointmentId: string;
+  appointmentISO: string;
+  /** Dev-only: fire the stages seconds apart instead of waiting a week. */
+  devFireInSeconds?: number;
+}
+
+/**
+ * Schedule (or replace) the preparation reminders for one appointment. Cancels
+ * first so stages replace rather than stack, skips any stage whose instant has
+ * passed (booked 3 days out => only `d2` and `d0`), and degrades rather than
+ * throwing - the contract `scheduleEligibleAgain` already sets.
+ *
+ * Returns the stages that were actually scheduled.
+ */
+export async function schedulePrepReminders({
+  appointmentId,
+  appointmentISO,
+  devFireInSeconds,
+}: SchedulePrepRemindersOptions): Promise<PrepStageKey[]> {
+  const Notifications = available();
+  if (!Notifications) return [];
+
+  await ensurePrepChannel();
+  await cancelPrepReminders(appointmentId); // stages replace, never stack
+
+  const scheduled: PrepStageKey[] = [];
+  for (let index = 0; index < PREP_STAGES.length; index += 1) {
+    const stage = PREP_STAGES[index];
+    try {
+      let trigger: NotificationTriggerInput;
+      if (devFireInSeconds) {
+        trigger = {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: devFireInSeconds * (index + 1),
+          repeats: false,
+          channelId: PREP_CHANNEL,
+        };
+      } else {
+        const fireAt = prepStageFireAt(appointmentISO, stage);
+        if (!fireAt) continue;
+        trigger = {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: fireAt,
+          channelId: PREP_CHANNEL,
+        };
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: prepIdFor(appointmentId, stage.key),
+        content: {
+          title: stage.title,
+          body: stage.body,
+          data: { url: `/prepare?id=${appointmentId}&stage=${stage.key}` },
+        },
+        trigger,
+      });
+      scheduled.push(stage.key);
+    } catch {
+      // One stage failing shouldn't cost the others.
+    }
+  }
+  return scheduled;
+}
+
+/** Cancel this appointment's prep reminders. A missing id is fine. */
+export async function cancelPrepReminders(appointmentId: string): Promise<void> {
+  const Notifications = available();
+  if (!Notifications) return;
+  for (const stage of PREP_STAGES) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(prepIdFor(appointmentId, stage.key));
+    } catch {
+      // Nothing scheduled under that id - fine.
+    }
+  }
+}
+
+/**
+ * Cancel every pending prep reminder, whatever appointment it belongs to.
+ * Enumerating rather than requiring the caller to know the ids is what makes
+ * sign-out and the preference toggle correct.
+ */
+export async function cancelAllPrepReminders(): Promise<void> {
+  const Notifications = available();
+  if (!Notifications) return;
+  try {
+    const pending = await Notifications.getAllScheduledNotificationsAsync();
+    for (const request of pending) {
+      if (!request.identifier.startsWith(PREP_ID_PREFIX)) continue;
+      try {
+        await Notifications.cancelScheduledNotificationAsync(request.identifier);
+      } catch {
+        // Already gone - fine.
+      }
+    }
+  } catch {
+    // Can't enumerate on this runtime; nothing to clean up.
   }
 }
 
